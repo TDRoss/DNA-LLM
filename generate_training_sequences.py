@@ -49,8 +49,8 @@ def sequence_design(dotpar,seq_length,nupackmodel):
     G = nup.TargetStrand([g], name='Strand G')
     Ct = nup.TargetComplex([F,G], dotpar, name='Ct')
     t1 = nup.TargetTube(on_targets={Ct: 1e-8}, name='t1')
-    sim1 = nup.Similarity([f,g], f'S{seq_length*2}', limits=[0.3, 0.7])
-    my_design = nup.tube_design(tubes=[t1], hard_constraints=[sim1], soft_constraints=[], defect_weights=None, options=None, model=nupackmodel)
+    # sim1 = nup.Similarity([f,g], f'S{seq_length*2}', limits=[0.3, 0.7])
+    my_design = nup.tube_design(tubes=[t1], hard_constraints=[], soft_constraints=[], defect_weights=None, options=None, model=nupackmodel)
     while True:
         try:
             my_results = my_design.run(trials=1)
@@ -64,11 +64,6 @@ def sequence_design(dotpar,seq_length,nupackmodel):
 
 def get_sequence(seq_length,num_mismatches, nupackmodel):
     dotpar = generate_secondary_structure(seq_length,num_mismatches)
-    # bad_probs = 0    
-    # while probability < min_prob: #Generate new sequences until equilibrium probability is met
-        # if bad_probs == 3:
-        #     dotpar = generate_secondary_structure(seq_length,num_mismatches)
-        #     bad_probs = 0
     strand1, strand2 = sequence_design(dotpar,seq_length,nupackmodel)
     return strand1,strand2
 

@@ -1,51 +1,67 @@
 import json
+import numpy as np
 
-def analyze_results(experiment,training_sizes,condition=None):
-    if condition is not None:
-        file_name = f'test_results/{experiment}_{condition}_test_size_{training_sizes[0]}.json'
-    else:
-        file_name = f'test_results/{experiment}_test_size_{training_sizes[0]}.json'
 
-    data = []
-    with open(file_name, 'r') as file:
-        for line in file:
-            json_obj = json.loads(line)
-            data.append(json_obj)
-    wrong_answers = []
-    error_step = []
-    for entry in data:
-        if experiment == "base_comparison":
-            if entry["model"] != entry["base_comparison"] and entry["model"] != "2":
-                # wrong_answers.append({'ans':entry["base_comparison"],'model':entry["model"]})
-                cat_seq = entry['seq1'] + entry['seq2']
-                g_count = cat_seq.count('G')
-                c_count = cat_seq.count('C')
-                t_count = cat_seq.count('T')
-                a_count = cat_seq.count('A')
-                max_count = max(g_count,c_count,t_count,a_count)
-                wrong_answers.append(max_count/len(cat_seq))
+def analyze_results():
+    experiments = {
+        "reverse_complement":{
+            "naive":"naive_max_tries_20_test_size_10000"
+        },
+        "secondary_structure":{
+            "naive":"naive_max_tries_20_test_size_10000",
+            "seq2CoT":"seq2CoT_max_tries_20_test_size_10000",
+            "rev2CoT":"rev2CoT_max_tries_20_test_size_10000",
+            "+rev_comp+CoT":"+rev_comp+CoT_max_tries_20_test_size_10000",
+            "+rev_comp_expert+CoT":"+rev_comp_expert+CoT_expert_tries_20_max_tries_20_test_size_10000",
+            "+rev_comp_expert+CoT-1_try":"+rev_comp_expert+CoT_expert_tries_1_max_tries_20_test_size_10000"
+        },
+        "minimum_free_energy":{
+            "naive":"naive_max_tries_20_test_size_10000",
+            "rev2CoT":"rev2CoT_max_tries_20_test_size_10000",
+            "+rev_comp+CoT":"+rev_comp+CoT_max_tries_20_test_size_10000",
+            "+rev_comp_expert+CoT":"+rev_comp_expert+CoT_expert_tries_20_max_tries_20_test_size_10000",
+            "+rev_comp+dotpar": "+rev_comp+dotpar_max_tries_20_test_size_10000"
+        },
+        "sequence_design":{
+            "naive":"naive_max_tries_20_test_size_10000",
+            "CoTseq2":"CoTseq2_max_tries_20_test_size_10000",
+            "CoT+rev_comp":"CoTrev2+rev_comp_max_tries_20_test_size_10000",
+            "CoTrev2+rev_comp_expert":"CoTrev2+rev_comp_expert_expert_tries_20_max_tries_20_test_size_10000",
+            "CoTrev2+rev_comp_expert+error_checking":"CoTrev2+rev_comp_expert+error_checking+_expert_tries_20_max_tries_20_test_size_10000",
+            "CoTrev2+rev_comp_expert+error_checking_expert":"CoTrev2+rev_comp_expert+error_checking_expert+_expert_tries_20_max_tries_20_test_size_10000_new"
+        }
+    }
 
-        elif experiment == "chain_of_experts":
-            if entry["model_base_pairing"] != entry["base_pairing"]:
-                wrong_answers.append((entry["model_base_pairing"],entry["base_pairing"]))
-            #Identify which step is responsible for the most failures
-            error_list = [entry["rev2"] != entry["model_rev2"],
-            entry["model_base_comparison"] != entry["base_comparison"],
-            entry["model_base_pairing"] != entry["base_pairing"],
-            entry["model_structure"] != entry["structure"]] 
-            if sum(error_list) != 0:
-                #Find where first error occurs
-                error_step.append(next(indx for indx,value in enumerate(error_list) if value == True))
+    for exp, conditions in experiments.items():
+        print("----")
+        print(f"{exp}")
+        for cond, fn in conditions.items():
+            file_name = f"test_results/{exp}_{fn}.json"
 
-    # print(f"reverse complement:{sum(eind == 0 for eind in error_step)/len(error_step)}")
-    # print(f"base compare:{sum(eind == 1 for eind in error_step)/len(error_step)}")
-    # print(f"base pair:{sum(eind == 2 for eind in error_step)/len(error_step)}")
-    # print(f"conversion:{sum(eind == 3 for eind in error_step)/len(error_step)}")
-    thing = [(mbp,ans) for mbp, ans in wrong_answers if mbp != "2"]
-    print(f"{thing}")
+            responses = []
+            with open(file_name,'r') as f:
+                for line in f:
+                    responses.append(json.loads(line))
+
+            if exp == "reverse_complement":
+                match_count = sum(1 for entry in responses if entry["model"]== entry["rev2"])
+                accuracy = match_count/len(responses)*100
+                out_val = f"{accuracy=:.3g}%"
+            elif exp == "secondary_structure":
+                match_count = sum(1 for entry in responses if entry["model_structure"] == entry["structure"])
+                accuracy = match_count/len(responses)*100
+                out_val = f"{accuracy=:.3g}%"                                
+            elif exp == "minimum_free_energy":
+                distances = [np.abs(float(entry["model_MFE"]) - float(entry["MFE"])) for entry in responses if entry["model_MFE"] != 2]
+                error = np.median(distances)
+                std_dist = np.std(distances)
+                out_val = f"{error=:.3g} +/- {std_dist:.3g} kcal/mol"
+            elif exp == "sequence_design":
+                match_count = sum(1 for entry in responses if entry["structure"] == entry["model_structure"])
+                accuracy = match_count/len(responses)*100
+                out_val = f"{accuracy=:.3g}%"
+            print(f"{cond}:"+out_val)
+
 
 if __name__ == '__main__':
-    training_sizes = [10000]
-    experiment = "chain_of_experts"
-    # condition = "CoT+rev_comp"
-    analyze_results(experiment,training_sizes)
+    analyze_results()

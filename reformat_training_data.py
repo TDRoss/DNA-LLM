@@ -5,7 +5,7 @@ def reverse_complement(dna):
     complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
     return ''.join(complement[base] for base in reversed(dna))
 
-with open(f"training_data/DNA_sequence_train_set.json", 'r') as f: 
+with open(f"training_data/sequence_train_set.json", 'r') as f: 
         train_set = json.load(f)
 
 data = []
@@ -17,6 +17,7 @@ for seq1, seq2, _, prob_string, dotpar in train_set:
         stepbystep.append(f"{char1}{char2}:{bit} ")
     step_string = ''.join(stepbystep).strip()
 
+    # tdic = {"sequences":f"{seq1} {seq2}","base_compare": f"{base_compare_string}"}
     tdic = {"sequences":f"{seq1} {seq2}","base_compare": f"{step_string} ans:{base_compare_string}"}
     data.append(tdic)
 
