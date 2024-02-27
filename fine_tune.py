@@ -27,171 +27,6 @@ def generate_reverse_complement_jsonl(condition,seqs, output_filename):
             message = {"messages": [system_message,user_message,assistant_message]}
             f.write(json.dumps(message) + '\n')
 
-def generate_base_comparison_jsonl(condition,seqs, output_filename):
-    with open(output_filename, 'w') as f:
-        for seq1, seq2, _, prob_string, dotpar in seqs:
-            rev2 = reverse_complement(seq2)
-            base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))])
-            if condition == "-rev_comp":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two partially complementary sequences and return a binary string corresponding to a valid or invalid base pairing."}
-                user_message = {"role": "user", "content": f"{seq1} {seq2}"}
-                assistant_message = {"role": "assistant", "content": f"{base_compare_string}"}
-            elif condition == "+rev_comp":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and return a binary string corresponding to characters being identical or not."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2}"}
-                assistant_message = {"role": "assistant", "content": f"{base_compare_string}"}
-            elif condition == "CoT":
-                complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
-                stepbystep=[]
-                for char1, char2 in zip(seq1, seq2[::-1]):
-                    bit = int(complement[char1]==char2)
-                    stepbystep.append(f"{char1}{char2}:{bit} ")
-                step_string = ''.join(stepbystep).strip()
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two partially complementary sequences and return a binary string corresponding to a valid or invalid base pairing."}
-                user_message = {"role": "user", "content": f"{seq1} {seq2}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} ans:{base_compare_string}"}
-            elif condition == "revCoT":
-                stepbystep=[]
-                for indx, (char1, char2, bit) in enumerate(zip(seq1, rev2, base_compare_string)):
-                    stepbystep.append(f"{char1}{char2}:{bit} ")
-                    # stepbystep.append(f"({seq1[indx:]},{rev2[indx:]}){char1}{char2}:{bit} ")
-                step_string = ''.join(stepbystep).strip()
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two partially complementary sequences and return a binary string corresponding to a valid or invalid base pairing."}
-                user_message = {"role": "user", "content": f"{seq1} {seq2}"}
-                assistant_message = {"role": "assistant", "content": f"{rev2} {step_string} ans:{base_compare_string}"}                
-            elif condition == "CoT+rev_comp":
-                stepbystep=[]  
-                for indx, (char1, char2, bit) in enumerate(zip(seq1, rev2, base_compare_string)):
-                    # stepbystep.append(f"{char1}{char2}:{bit} ")
-                    stepbystep.append(f"({seq1[indx:]},{rev2[indx:]}){char1}{char2}:{bit} ")
-                step_string = ''.join(stepbystep).strip()
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and return a binary string corresponding to characters being identical or not."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} ans:{base_compare_string}"}
-            elif condition == "CoT+rev_comp_to_dotpar":
-                stepbystep=[]  
-                for indx, (char1, char2) in enumerate(zip(seq1, rev2)):
-                    # stepbystep.append(f"{char1}{char2}:{bit} ")
-                    stepbystep.append(f"({seq1[indx:]},{rev2[indx:]}){char1}{char2}:{dotpar[indx]} ")
-                step_string = ''.join(stepbystep).strip()
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and return the secondary structure using dot-parens-plus notation."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} ans:{dotpar}"}                
-
-            message = {"messages": [system_message,user_message,assistant_message]}
-            f.write(json.dumps(message) + '\n')
-
-def generate_base_pairing_jsonl(condition,seqs, output_filename):
-    with open(output_filename, 'w') as f:
-        for seq1, seq2, _, prob_string, dotpar in seqs:
-            rev2 = reverse_complement(seq2)
-            base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))]) 
-            pad = '__'
-            zpad = "00"
-            pad_seq1 = pad+seq1+pad
-            pad_rev2 = pad+rev2+pad
-            pad_bc = pad+base_compare_string+pad
-            zpad_bc = zpad+base_compare_string+zpad
-            pad_bp1 = 5*'x'+prob_string[:len(seq1)]
-            pad_bp2 = 5*'x'+prob_string[-len(seq1):][::-1]
-            stepbystep =[]
-            for baseind in range(len(seq1)):
-                indx = slice(baseind,baseind+5)
-                if condition == "+base_comparison" or condition == "2altdotparens+base_comparison":
-                    stepbystep.append(f"[{pad_seq1[indx]},{pad_rev2[indx]},{pad_bc[indx]},{pad_bp1[indx]},{pad_bp2[indx]}]:{prob_string[baseind]},{prob_string[-len(seq1):][::-1][baseind]} ")
-                elif condition == "3altdotparens+base_comparison" or "alt+base_comparison":
-                    stepbystep.append(f"[{pad_seq1[indx]},{pad_rev2[indx]},{zpad_bc[indx]}]:{prob_string[baseind]},{prob_string[-len(seq1):][::-1][baseind]} ")
-                # elif condition == "alt+base_comparison":
-                #     mod_seq1 = ""
-                #     mod_rev2 = ""
-                #     for s1,r2,zb in zip(pad_seq1,pad_rev2,zpad_bc):
-                #         if zb == "1":
-                #             mod_seq1 += s1
-                #             mod_rev2 += r2
-                #         else:
-                #             mod_seq1 += "_"
-                #             mod_rev2 += "_"
-                #     stepbystep.append(f"[{zpad_bc[indx]},{mod_seq1[indx]},{mod_rev2[indx]},{pad_bp1[indx]},{pad_bp2[indx]}]:{prob_string[baseind]},{prob_string[-len(seq1):][::-1][baseind]} ")    
-                elif condition == "-base_comparison":
-                    stepbystep.append(f"[{pad_seq1[indx]},{pad_rev2[indx]},{pad_bp1[indx]},{pad_bp2[indx]}]:{prob_string[baseind]},{prob_string[-len(seq1):][::-1][baseind]} ")
-                elif condition == "dotparens+base_comparison":
-                    stepbystep.append(f"[{pad_seq1[indx]},{pad_rev2[indx]},{pad_bc[indx]},{pad_bp1[indx]},{pad_bp2[indx]}]:{dotpar[baseind]},{dotpar[-len(seq1):][::-1][baseind]} ")
-            step_string = ''.join(stepbystep).strip()
-
-            if condition == "+base_comparison":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to generate two binaries representing where base pairing occurs."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} ans:{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}
-            elif condition == "-base_comparison":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences to generate two binaries representing where base pairing occurs."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} ans:{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}
-            elif condition == "dotparens+base_comparison":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to show where bases bind using parens-dot-plus notation."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} ans:{dotpar[:len(seq1)]} {dotpar[-len(seq1):][::-1]}"}  
-            elif condition == "alt+base_comparison":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to generate two binaries representing where base pairing occurs."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} ans:{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}
-            elif condition == "3altdotparens+base_comparison":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to determine the secondary structure in dot-parens-plus notation."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} {prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]} ans:{dotpar}"}
-            elif condition == "2altdotparens+base_comparison":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to determine the secondary structure in dot-parens-plus notation."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} {prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]} ans:{dotpar}"}
-            # elif condition == "alt+base_comparison":
-            #     mod_seq1 = ""
-            #     mod_rev2 = ""
-            #     pad = '__'
-            #     zpad = "00"
-            #     pad_seq1 = pad+seq1+pad
-            #     pad_rev2 = pad+rev2+pad
-            #     pad_bc = pad+base_compare_string+pad
-            #     zpad_bc = zpad+base_compare_string+zpad
-            #     for s1,r2,zb in zip(pad_seq1,pad_rev2,zpad_bc):
-            #         if zb == "1":
-            #             mod_seq1 += s1
-            #             mod_rev2 += r2
-            #         else:
-            #             mod_seq1 += "_"
-            #             mod_rev2 += "_"
-            #     system_message = {"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to generate two binaries representing where base pairing occurs."}
-            #     user_message = {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}
-            #     assistant_message = {"role": "assistant", "content": f"{mod_seq1} ans:{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}                                       
-            message = {"messages": [system_message,user_message,assistant_message]}
-            f.write(json.dumps(message) + '\n')
-
-def generate_convert_to_dotparens_jsonl(condition,seqs, output_filename):
-    with open(output_filename, 'w') as f:
-        for seq1, seq2, _, prob_string, dotpar in seqs:
-            if condition == "complete":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please take the base pairing binaires and convert them to parens-dot-plus notation."}
-                user_message = {"role": "user", "content": f"{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}
-                assistant_message = {"role": "assistant", "content": f"{dotpar}"}
-            elif condition == "flip+complete":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please take the base pairing binaires and convert them to parens-dot-plus notation."}
-                user_message = {"role": "user", "content": f"{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}
-                assistant_message = {"role": "assistant", "content": f"{prob_string[:len(seq1)]} {prob_string[-len(seq1):]} ans:{dotpar}"}
-            elif condition == "char_convert":
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please take the base pairing binaires and convert the characters to parens-dot notation."}
-                user_message = {"role": "user", "content": f"{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}
-                assistant_message = {"role": "assistant", "content": f"{dotpar[:len(seq1)]} {dotpar[-len(seq1):][::-1]}"}  
-            elif condition == "CoT":
-                seq1prob = prob_string[:len(seq1)]
-                rev2prob = prob_string[-len(seq2):][::-1]
-                stepbystep=[]
-                for indx, (char1, char2) in enumerate(zip(dotpar[:len(seq1)], dotpar[-len(seq2):][::-1])):
-                    stepbystep.append(f"[{seq1prob[indx:]},{rev2prob[indx:]}]{char1}{char2}:{dotpar[:indx+1]}+{dotpar[-(indx+1):]} ")
-                step_string = ''.join(stepbystep).strip()
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please take the base pairing binaires and convert them to parens-dot-plus notation."}
-                user_message = {"role": "user", "content": f"{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}
-                assistant_message = {"role": "assistant", "content": f"{step_string} ans:{dotpar}"}                
-            message = {"messages": [system_message,user_message,assistant_message]}
-            f.write(json.dumps(message) + '\n')
-
 def generate_structure_jsonl(condition, seqs, output_filename):
     with open(output_filename, 'w') as f:
         for seq1, seq2, _, prob_string, dotpar in seqs:
@@ -237,16 +72,6 @@ def generate_structure_jsonl(condition, seqs, output_filename):
                 system_message = {"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair and base comparison binary to produce the secondary structure in parens-dot-plus notation."}
                 user_message = {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}
                 assistant_message = {"role": "assistant", "content": f"{dotpar}"}
-            # elif condition == "+rev_comp+CoT":
-            #     rev2 = reverse_complement(seq2)
-            #     base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))])
-            #     stepbystep=[]
-            #     for indx, (char1, char2) in enumerate(zip(seq1, rev2)):
-            #         stepbystep.append(f"({seq1[indx:]},{rev2[indx:]}){char1}{char2}:{dotpar[indx]} ")
-            #     step_string = ''.join(stepbystep).strip()
-            #     system_message = {"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair to produce the secondary structure in parens-dot-plus notation."}
-            #     user_message = {"role": "user", "content": f"{seq1} {rev2}"}
-            #     assistant_message = {"role": "assistant", "content": f"{step_string} {dotpar}"}   
             elif condition == "+rev_comp+CoT":
                 rev2 = reverse_complement(seq2)
                 base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))]) 
@@ -267,7 +92,6 @@ def generate_structure_jsonl(condition, seqs, output_filename):
                 assistant_message = {"role": "assistant", "content": f"{step_string} ans:{dotpar}"}                   
             message = {"messages": [system_message,user_message,assistant_message]}
             f.write(json.dumps(message) + '\n')
-            #best model: ft:gpt-3.5-turbo-1106:hedilog::8qXEc0Y5
 
 def generate_mfe_jsonl(condition, seqs, output_filename):
     with open(output_filename, 'w') as f:
@@ -389,12 +213,6 @@ def fine_tune(experiment,train_size,condition=None):
     for ts in train_sizes:
         if experiment == "reverse_complement":
             generate_reverse_complement_jsonl(condition,train_set[:ts],f"fine_tune_sets/{experiment}_{condition}_train_size_{ts}.jsonl")
-        elif experiment == "base_comparison":
-            generate_base_comparison_jsonl(condition,train_set[:ts],f"fine_tune_sets/{experiment}_{condition}_train_size_{ts}.jsonl")
-        elif experiment == "base_pairing":
-            generate_base_pairing_jsonl(condition,train_set[:ts],f"fine_tune_sets/{experiment}_{condition}_train_size_{ts}.jsonl")
-        elif experiment == "convert_to_dotparens":
-            generate_convert_to_dotparens_jsonl(condition,train_set[:ts],f"fine_tune_sets/{experiment}_{condition}_train_size_{ts}.jsonl")
         elif experiment == "secondary_structure":
             generate_structure_jsonl(condition,train_set[:ts],f"fine_tune_sets/{experiment}_{condition}_train_size_{ts}.jsonl")
         elif experiment == "minimum_free_energy":

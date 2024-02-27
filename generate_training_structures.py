@@ -9,18 +9,6 @@ def reverse_complement(dna):
     complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
     return ''.join(complement[base] for base in reversed(dna))
 
-# def generate_sequence(seq_len,num_mismatches):
-#     nucleotides = 'ATCG'
-#     seq1 = ''.join(random.choice(nucleotides) for _ in range(seq_len))
-#     rev_comp = list(reverse_complement(seq1))
-#     #Introduce mismatches
-#     mismatch_index = random.sample(range(0,seq_len), num_mismatches)
-#     for indx in mismatch_index:
-#         rev_comp[indx] = random.choice([n for n in nucleotides if n != rev_comp[indx]])
-#     seq2 = ''.join(rev_comp)
-#     return seq1, seq2
-
-
 def analyze_strands(strand1, strand2, nupackmodel):
     A = nup.Strand(strand1, name='A')
     B = nup.Strand(strand2, name='B')
@@ -87,63 +75,6 @@ def generate_training_structures():
                     all_data.append((dotpar,strand1,strand2))
                     pbar.update(1)
                               
-
-#                     prob_struc = True
-#                     splitdotpar = dotpar.split('+')#Ensure that there is no self-complementarity
-#                     if ')' in splitdotpar[0] or '(' in splitdotpar[1]:
-#                         prob_struc = False
-#                     if prob_struc:
-#                         for char1, char2 in zip(prob_string, dotpar.replace('+','')): #Ensure rounded probabilities match the secondary structure
-#                             if char1 == '0' and char2 != '.':
-#                                 prob_struc = False
-#                                 break
-#                             elif char1 == '1' and char2 not in '()':
-#                                 prob_struc = False
-#                                 break
-#                         if prob_struc:
-#                             all_data.append((seq1,seq2,mfe,prob_string,dotpar))
-#                             seqs.add((seq1,seq2))
-#                             pbar.update(1)
-#                             break                    
-
-
-# def generate_training_sequences(training_size):
-#     nupackmodel = nup.Model(material='DNA',celsius=20)
-#     all_data = []
-#     seqs = set()
-#     with tqdm(total=training_size) as pbar: 
-#         while len(seqs) < training_size:
-#             seq_len = random.randint(10,25)
-#             num_mismatches = max(1,random.randint(0,round(seq_len*0.3)))
-#             while True:
-#                 seq1, seq2 = generate_sequence(seq_len,num_mismatches)
-#                 if (seq1,seq2) not in seqs and (seq2,seq1) not in seqs: #Ensure sequence pair is unique
-#                     complex_vals = analyze_strands(seq1,seq2,nupackmodel)
-#                     mfe = round(complex_vals.mfe[0].energy,1)
-#                     dotpar = str(complex_vals.mfe[0].structure)
-#                     #Get base-pair probabilities
-#                     pair_array = complex_vals.pairs.to_array()
-#                     np.fill_diagonal(pair_array, 0)
-#                     rounded_array=np.around(pair_array)
-#                     total_pair_prob = rounded_array.sum(axis=0)
-#                     prob_string = np.array2string(total_pair_prob, separator='', max_line_width=np.inf).replace('[', '').replace(']', '').replace(',', '').replace('.', '')
-#                     prob_struc = True
-#                     splitdotpar = dotpar.split('+')#Ensure that there is no self-complementarity
-#                     if ')' in splitdotpar[0] or '(' in splitdotpar[1]:
-#                         prob_struc = False
-#                     if prob_struc:
-#                         for char1, char2 in zip(prob_string, dotpar.replace('+','')): #Ensure rounded probabilities match the secondary structure
-#                             if char1 == '0' and char2 != '.':
-#                                 prob_struc = False
-#                                 break
-#                             elif char1 == '1' and char2 not in '()':
-#                                 prob_struc = False
-#                                 break
-#                         if prob_struc:
-#                             all_data.append((seq1,seq2,mfe,prob_string,dotpar))
-#                             seqs.add((seq1,seq2))
-#                             pbar.update(1)
-#                             break
 
     # Randomly generate indices for train and validation split
     train_indices = random.sample(range(training_size), training_size-1000)

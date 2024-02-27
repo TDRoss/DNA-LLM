@@ -52,6 +52,13 @@ def test_reverse_complement_model(sampled_sequences,condition,max_tries,retry_de
         for seq1, seq2, mfe, prob_string, dotpar in sampled_sequences:
             bad_outputs = 0
             rev2 = reverse_complement(seq2)
+            res_dic = {     "seq1": seq1,
+                            "seq2": seq2,
+                            "MFE": mfe,
+                            "structure": dotpar,
+                            "prob_string": prob_string,
+                            "rev2": rev2,
+                        }            
             message = [
                 {"role": "system", "content": "You are a DNA analyzer. Please return the reverse complement of the following sequence."},
                 {"role": "user", "content": f"{seq2}"}
@@ -68,28 +75,14 @@ def test_reverse_complement_model(sampled_sequences,condition,max_tries,retry_de
                         valid_out = len(ans_string) == len(seq2) and all(char in 'GCTA' for char in ans_string)
 
                     if valid_out: #verify correct output form
-                        results.append({
-                            "seq1": seq1,
-                            "seq2": seq2,
-                            "MFE": mfe,
-                            "structure": dotpar,
-                            "prob_string": prob_string,
-                            "rev2": rev2,
-                            "model": ans_string   
-                        })
+                        res_dic["model"] = ans_string
+                        results.append(res_dic)
                         break
                     else:
                         bad_outputs+=1
                         if bad_outputs == max_tries:
-                            results.append({
-                                "seq1": seq1,
-                                "seq2": seq2,
-                                "MFE": mfe,
-                                "structure": dotpar,
-                                "prob_string": prob_string,
-                                "rev2": rev2,
-                                "model": "2"   
-                            })
+                            res_dic["model"] = "2"
+                            results.append(res_dic)
                             break
                 else:
                     print("timeout, retrying")
@@ -97,356 +90,6 @@ def test_reverse_complement_model(sampled_sequences,condition,max_tries,retry_de
             pbar.update(1)                    
     return results
 
-
-def test_base_comparison_model(sampled_sequences,condition,max_tries,retry_delay,timeout_duration,modelid):
-    results = []
-    with tqdm(total=len(sampled_sequences)) as pbar: 
-        for seq1, seq2, mfe, prob_string, dotpar in sampled_sequences:
-            bad_outputs = 0
-            rev2 = reverse_complement(seq2)
-            base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))])
-            if condition == "-rev_comp" or condition == "CoT" or condition == "revCoT":
-                message =[{"role": "system", "content": "You are a DNA analyzer. Please compare the two partially complementary sequences and return a binary string corresponding to a valid or invalid base pairing."},
-                {"role": "user", "content": f"{seq1} {seq2}"}]
-            elif condition == "+rev_comp" or condition == "CoT+rev_comp":
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and return a binary string corresponding to characters being identical or not."},
-                {"role": "user", "content": f"{seq1} {rev2}"}]
-
-            while True:
-                response = call_openai_api(message,timeout_duration,modelid)
-                valid_out = False
-                if response is not None: #in case of API timeout
-                    out_string = str(response.choices[0].message.content)
-                    if condition == "-rev_comp" or condition == "+rev_comp":
-                        valid_out = len(out_string) == len(seq1) and all(char in '10' for char in out_string)
-                    elif condition == "CoT" or condition == "CoT+rev_comp" or condition == "revCoT":
-                        out_string = out_string.split("ans:")
-                        if len(out_string) == 2:
-                            out_string = out_string[1]
-                            valid_out = len(out_string) == len(seq1) and all(char in '10' for char in out_string)
-
-                    if valid_out:
-                        results.append({
-                            "seq1": seq1,
-                            "seq2": seq2,
-                            "MFE": mfe,
-                            "structure": dotpar,
-                            "prob_string": prob_string,
-                            "base_comparison": base_compare_string,
-                            "model": out_string   
-                        })
-                        break
-                    else:
-                        bad_outputs+=1
-                        if bad_outputs == max_tries:
-                            results.append({
-                                "seq1": seq1,
-                                "seq2": seq2,
-                                "MFE": mfe,
-                                "structure": dotpar,
-                                "prob_string": prob_string,
-                                "base_comparison": base_compare_string,
-                                "model": "2"   
-                            })
-                            break
-                else:
-                    print("timeout, retrying")
-                    time.sleep(retry_delay)
-            pbar.update(1)                    
-    return results                
-
-
-def test_base_pairing_model(sampled_sequences,condition,max_tries,retry_delay,timeout_duration,modelid):
-    results = []
-    with tqdm(total=len(sampled_sequences)) as pbar: 
-        for seq1, seq2, mfe, prob_string, dotpar in sampled_sequences:
-            bad_outputs = 0
-            rev2 = reverse_complement(seq2)
-            base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))])
-            if condition == "+base_comparison" or condition == "alt+base_comparison":
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to generate two binaries representing where base pairing occurs."},
-                {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}]
-            elif condition == "-base_comparison":
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences to generate two binaries representing where base pairing occurs."},
-                {"role": "user", "content": f"{seq1} {rev2}"}]
-            elif condition == "dotparens+base_comparison" or condition == "altdotparens+base_comparison" or condition[1:] == "altdotparens+base_comparison":
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to determine the secondary structure in dot-parens-plus notation."},
-                {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}]
-
-            while True:
-                response = call_openai_api(message,timeout_duration,modelid)
-                valid_out = False
-                if response is not None: #in case of API timeout
-                    out_string = str(response.choices[0].message.content).split("ans:")
-                    if condition == "altdotparens+base_comparison":
-                        ans_string = out_string[0]
-                        valid_out =  len(ans_string) == len(dotpar) and all(char in '()+.' for char in ans_string)
-                        ans_string = [ans_string,'']
-                    elif len(out_string) == 2:
-                        if condition[1:] == "altdotparens+base_comparison":
-                            ans_string = out_string[1]
-                            valid_out =  len(ans_string) == len(dotpar) and all(char in '()+.' for char in ans_string)
-                            ans_string = [ans_string,'']
-                        else:    
-                            ans_string = out_string[1].split(" ")
-                            if len(ans_string) == 2 and len(ans_string[0]) == len(seq1) and len(ans_string[1]) == len(seq2):
-                                if condition == "-base_comparison" or condition == "+base_comparison" or condition == "alt+base_comparison":
-                                    valid_out = all(all(char in '10' for char in string) for string in ans_string)
-                                elif condition == "dotparens+base_comparison":
-                                    valid_out =  all(char in '(.' for char in ans_string[0]) and all(char in ').' for char in ans_string[1])
-
-                                
-                    if valid_out:
-                        results.append({
-                            "seq1": seq1,
-                            "seq2": seq2,
-                            "MFE": mfe,
-                            "structure": dotpar,
-                            "prob_string": prob_string,
-                            "base_comparison": base_compare_string,
-                            "dotpar1": dotpar[:len(seq1)],
-                            "dotpar2": dotpar[-len(seq1):][::-1],
-                            "bpbin1": prob_string[:len(seq1)],
-                            "bpbin2": prob_string[-len(seq1):][::-1],
-                            "model1": ans_string[0],
-                            "model2": ans_string[1]  
-                        })
-                        break
-                    else:
-                        bad_outputs+=1
-                        if bad_outputs == max_tries:
-                            results.append({
-                                "seq1": seq1,
-                                "seq2": seq2,
-                                "MFE": mfe,
-                                "structure": dotpar,
-                                "prob_string": prob_string,
-                                "base_comparison": base_compare_string,
-                                "dotpar1": dotpar[:len(seq1)],
-                                "dotpar2": dotpar[-len(seq1):][::-1],
-                                "bpbin1": prob_string[:len(seq1)],
-                                "bpbin2": prob_string[-len(seq1):][::-1],
-                                "model1": "2",
-                                "model2": "2"  
-                            })
-                            break
-                else:
-                    print("timeout, retrying")
-                    time.sleep(retry_delay)
-            pbar.update(1)                    
-    return results 
-
-
-def test_convert_to_dotparens_model(sampled_sequences,condition,retry_delay,timeout_duration,modelid):
-    results = []
-    with tqdm(total=len(sampled_sequences)) as pbar: 
-        for seq1, seq2, mfe, prob_string, dotpar in sampled_sequences:
-            bad_outputs = 0
-            rev2 = reverse_complement(seq2)
-            base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))])
-            if condition == "complete" or condition == "flip+complete" or condition == "CoT":
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please take the base pairing binaires and convert them to parens-dot-plus notation."},
-                {"role": "user", "content": f"{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}]
-            elif condition == "char_convert":
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please take the base pairing binaires and convert the characters to parens-dot notation."},
-                {"role": "user", "content": f"{prob_string[:len(seq1)]} {prob_string[-len(seq1):][::-1]}"}]
-            while True:
-                response = call_openai_api(message,timeout_duration,modelid)
-                valid_out = False
-                if response is not None: #in case of API timeout
-                    out_string = str(response.choices[0].message.content)
-                    if condition == "complete":
-                        ans_string = out_string
-                        valid_out = len(ans_string) == len(dotpar) and all(char in '().+' for char in ans_string)
-                    elif condition == "flip+complete" or "CoT":
-                        out_string = out_string.split("ans:")
-                        if len(out_string) == 2:
-                            ans_string = out_string[1]
-                            valid_out = len(ans_string) == len(dotpar) and all(char in '().+' for char in ans_string)
-                    elif condition == "char_convert":
-                        ans_string = out_string
-                        check_string = ans_string.split(" ")
-                        valid_out = (len(check_string) == 2 and len(check_string[0]) == len(check_string[1]) == len(seq1) and 
-                        all(char in '(.' for char in check_string[0]) and all(char in ').' for char in check_string[1]))
-
-                    if valid_out:
-                        results.append({
-                            "seq1": seq1,
-                            "seq2": seq2,
-                            "MFE": mfe,
-                            "structure": dotpar,
-                            "prob_string": prob_string,
-                            "base_comparison": base_compare_string,
-                            "split_parensdot": dotpar[:len(seq1)]+" "+dotpar[-len(seq1):][::-1],
-                            "model": ans_string   
-                        })
-                        break
-                    else:
-                        bad_outputs+=1
-                        if bad_outputs == 21:
-                            results.append({
-                                "seq1": seq1,
-                                "seq2": seq2,
-                                "MFE": mfe,
-                                "structure": dotpar,
-                                "prob_string": prob_string,
-                                "base_comparison": base_compare_string,
-                                "split_parensdot": dotpar[:len(seq1)]+" "+dotpar[-len(seq1):][::-1],
-                                "model": "2"   
-                            })
-                            break
-                else:
-                    print("timeout, retrying")
-                    time.sleep(retry_delay)
-            pbar.update(1)                    
-    return results    
-
-def test_chain_of_experts(sampled_sequences,condition,max_tries,coe_args,retry_delay,timeout_duration):    
-    results = []
-    with tqdm(total=len(sampled_sequences)) as pbar: 
-        for seq1, seq2, mfe, prob_string, dotpar in sampled_sequences:
-            #reverse complement
-            bad_outputs = 0
-            message = [
-                {"role": "system", "content": "You are a DNA analyzer. Please return the reverse complement of the following sequence."},
-                {"role": "user", "content": f"{seq2}"}
-            ]
-            while True:
-                response = call_openai_api(message,timeout_duration,coe_args["model_list"][0])
-                if response is not None: #in case of API timeout
-                    out_string = str(response.choices[0].message.content)
-                    if len(out_string) == len(seq2) and all(char in 'GCTA' for char in out_string): #verify correct output form
-                        model_rev2 = out_string
-                        break
-                    else:
-                        bad_outputs += 1
-                        if bad_outputs == max_tries:
-                            model_rev2 = "2"
-                            break
-                else:
-                    print("timeout on reverse complement, retrying")
-                    time.sleep(retry_delay)
-
-            if model_rev2 != "2":
-                #base comparison
-                bad_outputs = 0
-                valid_out = False
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and return a binary string corresponding to characters being identical or not."},
-                        {"role": "user", "content": f"{seq1} {model_rev2}"}]
-                while True:
-                    response = call_openai_api(message,timeout_duration,coe_args["model_list"][1])
-                    if response is not None: #in case of API timeout
-                        out_string = str(response.choices[0].message.content).split("ans:")
-                        if len(out_string) == 2:
-                            ans_string = out_string[1]
-                            valid_out = len(ans_string) == len(seq1) and all(char in '10' for char in ans_string)
-                        if valid_out:
-                            model_base_comparison = ans_string
-                            break
-                        else:
-                            bad_outputs += 1
-                            if bad_outputs == max_tries:
-                                model_base_comparison = "2"
-                                break
-                    else:
-                        print("timeout on base comparison, retrying")
-                        time.sleep(retry_delay)
-            else:
-                model_base_comparison = "2"
-            
-            if model_base_comparison != "2":
-                #secondary structure
-                bad_outputs = 0
-                valid_out = False
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair and base comparison binary to produce the secondary structure in parens-dot-plus notation."},
-                        {"role": "user", "content": f"{seq1} {model_rev2} {model_base_comparison}"}]
-                while True:
-                    response = call_openai_api(message,timeout_duration,coe_args["model_list"][2])
-                    if response is not None: #in case of API timeout
-                        ans_string = str(response.choices[0].message.content)
-                        valid_out = len(ans_string) == len(dotpar) and all(char in '().+' for char in ans_string) 
-                        if valid_out:
-                            model_structure = out_string[1]
-                            break
-                        else:
-                            bad_outputs += 1
-                            if bad_outputs == max_tries:
-                                model_structure = "2"
-                                break
-                    else:
-                        print("timeout on base pairing, retrying")
-                        time.sleep(retry_delay)
-            else: 
-                model_structure = "2"                
-            
-            # if model_base_comparison != "2":
-            #     #base pairing
-            #     bad_outputs = 0
-            #     valid_out = False
-            #     message = [{"role": "system", "content": "You are a DNA analyzer. Please compare the two sequences and the corresponding base comparison binary to generate two binaries representing where base pairing occurs."},
-            #             {"role": "user", "content": f"{seq1} {model_rev2} {model_base_comparison}"}]
-            #     while True:
-            #         response = call_openai_api(message,timeout_duration,coe_args["model_list"][2])
-            #         if response is not None: #in case of API timeout
-            #             out_string = str(response.choices[0].message.content).split("ans:")
-            #             if len(out_string) == 2:
-            #                 ans_string = out_string[1].split(" ")
-            #                 valid_out = len(ans_string) == 2 and len(ans_string[0]) == len(seq1) and len(ans_string[1]) == len(seq2) and all(all(char in '10' for char in string) for string in ans_string)
-            #             if valid_out:
-            #                 model_base_pairing = out_string[1]
-            #                 break
-            #             else:
-            #                 bad_outputs += 1
-            #                 if bad_outputs == max_tries:
-            #                     model_base_pairing = "2"
-            #                     break
-            #         else:
-            #             print("timeout on base pairing, retrying")
-            #             time.sleep(retry_delay)
-            # else: 
-            #     model_base_pairing = "2"
-
-            # if model_base_pairing != "2":
-            #     #convert to parens-dot-plus
-            #     bad_outputs = 0
-            #     message = [{"role": "system", "content": "You are a DNA analyzer. Please take the base pairing binaires and convert them to parens-dot-plus notation."},
-            #     {"role": "user", "content": f"{model_base_pairing}"}]
-            #     while True:
-            #         response = call_openai_api(message,timeout_duration,coe_args["model_list"][3])                
-            #         if response is not None: #in case of API timeout
-            #             out_string = str(response.choices[0].message.content)
-            #             if len(out_string) == len(seq1)*2+1 and all(char in '().+' for char in out_string):
-            #                 model_structure = out_string
-            #                 break
-            #             else:
-            #                 bad_outputs += 1
-            #                 if bad_outputs == max_tries:
-            #                     model_structure = "2"
-            #                     break
-            #         else:
-            #             print("timeout on parens-dot-plus conversion, retrying")
-            #             time.sleep(retry_delay)
-            # else:
-            #     model_structure = "2"
-
-            rev2 = reverse_complement(seq2)
-            base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))])            
-            results.append({
-                "seq1": seq1,
-                "seq2": seq2,
-                "MFE": mfe,
-                "structure": dotpar,
-                "prob_string": prob_string,
-                "rev2": rev2,
-                "base_comparison": base_compare_string,
-                # "base_pairing": prob_string[:len(seq1)]+" "+prob_string[-len(seq2):][::-1],
-                "model_rev2": model_rev2,
-                "model_base_comparison": model_base_comparison,
-                # "model_base_pairing": model_base_pairing,
-                "model_structure": model_structure            
-                })
-            pbar.update(1)
-    return results                    
 
 
 def test_secondary_structure_model(sampled_sequences,condition,max_tries,retry_delay,timeout_duration,modelid,coe_args=None):
@@ -582,8 +225,6 @@ def test_mfe_model(sampled_sequences,condition,max_tries,retry_delay,timeout_dur
     return results    
 
 
-
-
 def test_sequence_model(structures,condition,max_tries,retry_delay,timeout_duration,modelid,coe_args=None):
     if coe_args:
         max_tries_rev_comp = coe_args["max_tries"]        
@@ -688,14 +329,6 @@ def analyze_model(experiment,condition, train_size, max_tries, modelid=None, coe
     print("starting analysis")
     if experiment == "reverse_complement":
         responses = test_reverse_complement_model(val_set,condition,max_tries,retry_delay,timeout_duration,modelid)
-    elif experiment == "base_comparison":
-        responses = test_base_comparison_model(val_set,condition,max_tries,retry_delay,timeout_duration,modelid)
-    elif experiment == "base_pairing":
-        responses = test_base_pairing_model(val_set,condition,max_tries,retry_delay,timeout_duration,modelid)
-    elif experiment == "convert_to_dotparens":
-        responses = test_convert_to_dotparens_model(val_set,condition,retry_delay,timeout_duration,modelid)
-    elif experiment == "chain_of_experts":
-        responses = test_chain_of_experts(val_set,max_tries,coe_args,retry_delay,timeout_duration)
     elif experiment == "secondary_structure":
         responses = test_secondary_structure_model(val_set,condition,max_tries,retry_delay,timeout_duration,modelid,coe_args=coe_args)
     elif experiment == "minimum_free_energy":
@@ -720,37 +353,23 @@ def analyze_model(experiment,condition, train_size, max_tries, modelid=None, coe
 
 
     # Calculate the number of matches and the total count
-    if experiment == "reverse_complement":
-        match_count = sum(1 for entry in responses if entry["model"]== entry["rev2"])
-    elif experiment == "base_comparison":
-        match_count = sum(1 for entry in responses if entry["model"]== entry["base_comparison"])
-    elif experiment == "base_pairing":
-        if condition == "-base_comparison" or condition == "+base_comparison" or condition == "alt+base_comparison":
-            match_count = sum(1 for entry in responses if entry["model1"]== entry["bpbin1"] and entry["model2"]== entry["bpbin2"])
-            bad_out = sum(1 for entry in responses if entry["model1"] == "2")
-        elif condition == "altdotparens+base_comparison" or condition[1:] == "altdotparens+base_comparison":
-             match_count = sum(1 for entry in responses if entry["model1"]== entry["structure"])  
-    elif experiment == "convert_to_dotparens":
-        if condition == "complete" or condition == "flip+complete" or condition == "CoT":
-            match_count = sum(1 for entry in responses if entry["model"]== entry["structure"])
-            bad_out = sum(1 for entry in responses if entry["model"]== "2")
-        elif condition == "char_convert":
-            match_count = sum(1 for entry in responses if entry["model"]== entry["split_parensdot"])
-    elif experiment == "chain_of_experts" or experiment == "secondary_structure":
-        match_count = sum(1 for entry in responses if entry["model_structure"] == entry["structure"])
-    elif experiment == "minimum_free_energy":
-        error = np.mean([np.abs(float(entry["model_MFE"]) - float(entry["MFE"])) for entry in responses if entry["model_MFE"] != 2])
-        print(f"{error=}")
-    elif experiment == "sequence_design":
-        match_count = sum(1 for entry in responses if entry["structure"] == entry["model_structure"])
+    # if experiment == "reverse_complement":
+    #     match_count = sum(1 for entry in responses if entry["model"]== entry["rev2"])
+    # elif experiment == "secondary_structure":
+    #     match_count = sum(1 for entry in responses if entry["model_structure"] == entry["structure"])
+    # elif experiment == "minimum_free_energy":
+    #     error = np.mean([np.abs(float(entry["model_MFE"]) - float(entry["MFE"])) for entry in responses if entry["model_MFE"] != 2])
+    #     print(f"{error=}")
+    # elif experiment == "sequence_design":
+    #     match_count = sum(1 for entry in responses if entry["structure"] == entry["model_structure"])
 
-    if experiment != "minimum_free_energy":
-        total_count = len(val_set)
+    # if experiment != "minimum_free_energy":
+    #     total_count = len(val_set)
 
-        # # Calculate the accuracy
-        match_percentage = (match_count / total_count) * 100
-        print(f"Model accuracy: {match_percentage}%")
-        # print(bad_out/total_count*100)
+    #     # # Calculate the accuracy
+    #     match_percentage = (match_count / total_count) * 100
+    #     print(f"Model accuracy: {match_percentage}%")
+    #     # print(bad_out/total_count*100)
 
 
 def performance_test(experiment,max_tries,condition=None):
