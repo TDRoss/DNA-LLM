@@ -49,11 +49,15 @@ def analyze_results():
                 out_val = f"{accuracy=:.3g}%"
             elif exp == "secondary_structure":
                 match_count = sum(1 for entry in responses if entry["model_structure"] == entry["structure"])
+                # err_count = sum(1 for entry in responses if entry["model_structure"] != entry["structure"])
+                # bad_form = sum(1 for entry in responses if entry["model_structure"] == "2")
+          
                 accuracy = match_count/len(responses)*100
+                # print(bad_form/err_count*100)
                 out_val = f"{accuracy=:.3g}%"                                
             elif exp == "minimum_free_energy":
                 distances = [np.abs(float(entry["model_MFE"]) - float(entry["MFE"])) for entry in responses if entry["model_MFE"] != 2]
-                error = np.median(distances)
+                error = np.mean(distances)
                 std_dist = np.std(distances)
                 out_val = f"{error=:.3g} +/- {std_dist:.3g} kcal/mol"
             elif exp == "sequence_design":

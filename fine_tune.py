@@ -413,16 +413,16 @@ def fine_tune(experiment,train_size,condition=None):
         model_ids = pool.map(run_fine_tune_job, arguments)
 
     model_list = list(zip(train_sizes,model_ids))
-    with open("model_ids/"+outname+"_models.json", 'w') as f:
+    with open("model_ids/"+outname+"_models_ts.json", 'w') as f:
         json.dump(model_list, f)
 
 
 
 if __name__ == '__main__':
-    experiment = "minimum_free_energy"
-    condition = "seq2CoT"
-    # train_sizes = [200, 500, 1400, 3700, 10000]
-    train_sizes = [10000]
+    experiment = "sequence_design"
+    condition = "CoTrev2+rev_comp"
+    train_sizes = [200, 500, 1400, 3700]
+    # train_sizes = [10000]
     # fine_tune(experiment,train_sizes)
     fine_tune(experiment,train_sizes,condition=condition)
     

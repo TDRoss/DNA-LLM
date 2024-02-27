@@ -493,12 +493,12 @@ def test_secondary_structure_model(sampled_sequences,condition,max_tries,retry_d
                     out_string = str(response.choices[0].message.content)  
                     if condition == "naive" or condition == "+rev_comp+base_compare":
                         ans_string = out_string
-                        valid_out = len(ans_string) == len(dotpar) and all(char in '().+' for char in ans_string) 
+                        valid_out = len(ans_string) == len(seq1)+len(seq2)+1 and all(char in '().+' for char in ans_string) 
                     elif "CoT" in condition: 
                         out_string = out_string.split("ans:")
                         if len(out_string) == 2:
                             ans_string = out_string[1]
-                            valid_out = len(ans_string) == len(dotpar) and all(char in '().+' for char in ans_string)
+                            valid_out = len(ans_string) == len(seq1)+len(seq2)+1 and all(char in '().+' for char in ans_string)
                     if valid_out:
                         res_dic.update({"model_structure": ans_string})
                         if condition == "+rev_comp_expert+CoT":
@@ -616,7 +616,7 @@ def test_sequence_model(structures,condition,max_tries,retry_delay,timeout_durat
                         model_seq1 = ans_string[0]
                         if condition == "CoTrev2+rev_comp":
                             model_seq2 = reverse_complement(ans_string[1])
-                        elif "CoTrev2+rev_comp_expert" in condition:
+                        elif "CoTrev2+rev_comp_expert" in condition and "+error_checking+" not in condition:
                             rev_comp_res = test_reverse_complement_model([("2", ans_string[1], "2", "2", "2")],"naive",max_tries_rev_comp,retry_delay,timeout_duration,modelid_rev_comp)
                             model_seq2 = rev_comp_res[0]["model"]
                             if model_seq2 == "2":
@@ -627,13 +627,18 @@ def test_sequence_model(structures,condition,max_tries,retry_delay,timeout_durat
                     if valid_out and "+error_checking+" in condition:
                         model_dotpar = structure_from_strands(model_seq1,model_seq2,nupackmodel)
                         valid_out = model_dotpar == dotpar
+                    
                     elif valid_out and "+error_checking_expert+" in condition:
                             dotpar_res = test_secondary_structure_model([(model_seq1, ans_string[1], "2", "2", dotpar)],"CoT_error_check",max_tries_rev_comp,retry_delay,timeout_duration,modelid_dotpar)
                             expert_dotpar = dotpar_res[0]["model_structure"]
-                            valid_out = expert_dotpar == dotpar
-                            if valid_out and model_seq2 !="2":
-                                model_dotpar = structure_from_strands(model_seq1,model_seq2,nupackmodel)
-
+                            valid_out =  expert_dotpar == dotpar
+                            if valid_out:
+                                rev_comp_res = test_reverse_complement_model([("2", ans_string[1], "2", "2", "2")],"naive",max_tries_rev_comp,retry_delay,timeout_duration,modelid_rev_comp)
+                                model_seq2 = rev_comp_res[0]["model"]
+                                if valid_out and model_seq2 !="2":
+                                    model_dotpar = structure_from_strands(model_seq1,model_seq2,nupackmodel)                                                       
+                                else:
+                                    valid_out = False
                             
 
                     if valid_out:
@@ -734,17 +739,18 @@ def analyze_model(experiment,condition, train_size, max_tries, modelid=None, coe
     elif experiment == "chain_of_experts" or experiment == "secondary_structure":
         match_count = sum(1 for entry in responses if entry["model_structure"] == entry["structure"])
     elif experiment == "minimum_free_energy":
-        error = np.median([np.abs(float(entry["model_MFE"]) - float(entry["MFE"])) for entry in responses if entry["model_MFE"] != 2])
+        error = np.mean([np.abs(float(entry["model_MFE"]) - float(entry["MFE"])) for entry in responses if entry["model_MFE"] != 2])
         print(f"{error=}")
     elif experiment == "sequence_design":
         match_count = sum(1 for entry in responses if entry["structure"] == entry["model_structure"])
 
-    total_count = len(val_set)
+    if experiment != "minimum_free_energy":
+        total_count = len(val_set)
 
-    # # Calculate the accuracy
-    match_percentage = (match_count / total_count) * 100
-    print(f"Model accuracy: {match_percentage}%")
-    # print(bad_out/total_count*100)
+        # # Calculate the accuracy
+        match_percentage = (match_count / total_count) * 100
+        print(f"Model accuracy: {match_percentage}%")
+        # print(bad_out/total_count*100)
 
 
 def performance_test(experiment,max_tries,condition=None):
@@ -757,22 +763,28 @@ def performance_test(experiment,max_tries,condition=None):
             if subs in condition:
                 subcondition = subs.replace("_expert","")
                 break
-        with open(f"model_ids/{experiment}_{subcondition}_models.json",'r') as f:
-            train_size, modelid = json.load(f)[0]
-        coe_args = {}
-        with open("model_ids/reverse_complement_naive_models.json",'r') as f:
-            _, coe_args["modelid_rev_comp"] = json.load(f)[0]
+        with open(f"model_ids/{experiment}_{subcondition}_models_ts.json",'r') as f:
+            model_list = json.load(f)
         
-        if "+error_checking_expert+" in condition:
-            with open("model_ids/secondary_structure_+rev_comp+CoT_models.json",'r') as f:
-                _, coe_args["modelid_dotpar"] = json.load(f)[0]             
+        for indx, (train_size, modelid) in enumerate(model_list):
+            coe_args = {}
+            with open("model_ids/reverse_complement_naive_models_ts.json",'r') as f:
+                ts, coe_args["modelid_rev_comp"] = json.load(f)[indx]
+            if ts != train_size:
+                raise ValueError("training sizes are not equal!")
+            if "+error_checking_expert+" in condition:
+                with open("model_ids/secondary_structure_+rev_comp+CoT_models_ts.json",'r') as f:
+                    ts, coe_args["modelid_dotpar"] = json.load(f)[indx]
+                if ts != train_size:
+                    raise ValueError("training sizes are not equal!")                 
 
-        match = re.search(r'\d+$', condition)
-        coe_args["max_tries"] = int(match.group())
-        analyze_model(experiment,condition,train_size,max_tries,modelid=modelid,coe_args=coe_args)
+            match = re.search(r'\d+$', condition)
+            coe_args["max_tries"] = int(match.group())
+            if train_size > 1401:
+                analyze_model(experiment,condition,train_size,max_tries,modelid=modelid,coe_args=coe_args)
     else:        
         if condition is not None:
-            file_name =  f"model_ids/{experiment}_{condition}_models.json"
+            file_name =  f"model_ids/{experiment}_{condition}_models_ts.json"
         else:
             file_name =  f"model_ids/{experiment}_models.json"
 
@@ -784,7 +796,7 @@ def performance_test(experiment,max_tries,condition=None):
 
 if __name__ == '__main__':
     experiment = "sequence_design"
-    condition = "CoTrev2+rev_comp_expert+error_checking_expert+_expert_tries_20"
-    max_tries = 20
+    condition = "+CoTrev2+rev_comp_expert+error_checking_expert+_expert_tries_3"
+    max_tries = 3
     performance_test(experiment,max_tries,condition=condition,)
     # performance_test(experiment,max_tries)
