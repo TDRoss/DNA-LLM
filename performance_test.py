@@ -112,15 +112,9 @@ def test_secondary_structure_model(sampled_sequences,condition,max_tries,retry_d
             if condition == "naive" or condition == "rev2CoT" or condition == "seq2CoT":
                 message = [{"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair and produce the secondary structure in parens-dot-plus notation."},
                 {"role": "user", "content": f"{seq1} {seq2}"}]
-            elif condition == "+rev_comp+base_compare":
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair and base comparison binary to produce the secondary structure in parens-dot-plus notation."},
-                {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}]
             elif condition == "+rev_comp+CoT":
                 message = [{"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair to produce the secondary structure in parens-dot-plus notation."},
                 {"role": "user", "content": f"{seq1} {rev2}"}]
-            elif condition == "+rev_comp+base_compare+CoT":
-                message = [{"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair and base comparison binary to produce the secondary structure in parens-dot-plus notation."},
-                {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}]
             elif condition == "CoT_error_check":
                 message = [{"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair to produce the secondary structure in parens-dot-plus notation."},
                 {"role": "user", "content": f"{seq1} {seq2}"}]                
@@ -134,7 +128,7 @@ def test_secondary_structure_model(sampled_sequences,condition,max_tries,retry_d
                 valid_out = False
                 if response is not None: #in case of API timeout
                     out_string = str(response.choices[0].message.content)  
-                    if condition == "naive" or condition == "+rev_comp+base_compare":
+                    if condition == "naive":
                         ans_string = out_string
                         valid_out = len(ans_string) == len(seq1)+len(seq2)+1 and all(char in '().+' for char in ans_string) 
                     elif "CoT" in condition: 
@@ -382,17 +376,17 @@ def performance_test(experiment,max_tries,condition=None):
             if subs in condition:
                 subcondition = subs.replace("_expert","")
                 break
-        with open(f"model_ids/{experiment}_{subcondition}_models_ts.json",'r') as f:
+        with open(f"model_ids/{experiment}_{subcondition}_models.json",'r') as f:
             model_list = json.load(f)
         
         for indx, (train_size, modelid) in enumerate(model_list):
             coe_args = {}
-            with open("model_ids/reverse_complement_naive_models_ts.json",'r') as f:
+            with open("model_ids/reverse_complement_naive_models.json",'r') as f:
                 ts, coe_args["modelid_rev_comp"] = json.load(f)[indx]
             if ts != train_size:
                 raise ValueError("training sizes are not equal!")
             if "+error_checking_expert+" in condition:
-                with open("model_ids/secondary_structure_+rev_comp+CoT_models_ts.json",'r') as f:
+                with open("model_ids/secondary_structure_+rev_comp+CoT_models.json",'r') as f:
                     ts, coe_args["modelid_dotpar"] = json.load(f)[indx]
                 if ts != train_size:
                     raise ValueError("training sizes are not equal!")                 
@@ -403,7 +397,7 @@ def performance_test(experiment,max_tries,condition=None):
                 analyze_model(experiment,condition,train_size,max_tries,modelid=modelid,coe_args=coe_args)
     else:        
         if condition is not None:
-            file_name =  f"model_ids/{experiment}_{condition}_models_ts.json"
+            file_name =  f"model_ids/{experiment}_{condition}_models.json"
         else:
             file_name =  f"model_ids/{experiment}_models.json"
 

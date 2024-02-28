@@ -49,7 +49,6 @@ def generate_structure_jsonl(condition, seqs, output_filename):
                     indx = slice(baseind,baseind+3)
                     stepbystep.append(f"[{pad_seq1[indx]},{pad_rev2[indx]}]:{dotpar[:baseind+1]} ")
                 step_string = ''.join(stepbystep).strip()
-
                 system_message = {"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair and produce the secondary structure in parens-dot-plus notation."}
                 user_message = {"role": "user", "content": f"{seq1} {seq2}"}
                 assistant_message = {"role": "assistant", "content": f"{rev2} {step_string} ans:{dotpar}"}    
@@ -66,12 +65,6 @@ def generate_structure_jsonl(condition, seqs, output_filename):
                 system_message = {"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair and produce the secondary structure in parens-dot-plus notation."}
                 user_message = {"role": "user", "content": f"{seq1} {seq2}"}
                 assistant_message = {"role": "assistant", "content": f"{step_string} ans:{dotpar}"}                   
-            elif condition == "+rev_comp+base_compare":
-                rev2 = reverse_complement(seq2)
-                base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))])
-                system_message = {"role": "system", "content": "You are a DNA analyzer. Please analyze the following DNA sequence pair and base comparison binary to produce the secondary structure in parens-dot-plus notation."}
-                user_message = {"role": "user", "content": f"{seq1} {rev2} {base_compare_string}"}
-                assistant_message = {"role": "assistant", "content": f"{dotpar}"}
             elif condition == "+rev_comp+CoT":
                 rev2 = reverse_complement(seq2)
                 base_compare_string = ''.join(['1' if rev2[i] == seq1[i] else '0' for i in range(len(rev2))]) 

@@ -6,9 +6,7 @@ import numpy as np
 
 train_sizes = [200, 500, 1400, 3700, 10000]
 color_list = [(102.0/255,194.0/255,165.0/255),(252.0/255,141.0/255,98.0/255)]
-# m = MarkerStyle("D")
-# m._transform.scale(1.0, 0.6)
-# marker_list = ['d',m]
+
 experiments =[
     {"names": ["reverse complement","secondary structure"], 
   "exp_base": ["reverse_complement_naive_max_tries_20","secondary_structure_+rev_comp_expert+CoT_expert_tries_20_max_tries_20"]},
@@ -45,10 +43,7 @@ for exp in experiments:
             results.append(accuracy)
 
         if name == "minimum free energy":
-            # mae, stdev = zip(*results)
-            # mae, stdev = list(mae), list(stdev)
             plt.boxplot(results,showfliers=False)
-            # plt.errorbar(train_sizes,mae,yerr=stdev,color=color_list[ind],label=(plt_labels[ind] if plt_labels else None), fmt='o', capsize=5, capthick=2, ecolor='black', markeredgecolor='black')
         else:
             plt.scatter(train_sizes,results,color=color_list[ind],label=(plt_labels[ind] if plt_labels else None),s=300,edgecolor='black', linewidths=1)
 
@@ -61,7 +56,7 @@ for exp in experiments:
     if exp["names"][0] == "minimum free energy":
         plt.ylabel("absolute error (kcal/mol)", fontsize=18)
         plt.xticks([1, 2, 3, 4, 5], ['200', '500','1400', '3700', '10000'])
-        # plt.ylim(0,5.7)
+
     else:
         plt.xlim(0,10500)    
         plt.ylabel("accuracy %", fontsize=18)
@@ -71,50 +66,6 @@ for exp in experiments:
         handles, labels = plt.gca().get_legend_handles_labels()
         order = [1,0]  # Desired order (indices of datasets)        
         plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order],loc='upper left', bbox_to_anchor=(1, 1), fontsize=18)
-    # plt.subplots_adjust(right=0.7)
-    # plt.margins(x=0.1, y=0.1)
+
     plt.savefig(f"learning_curve_{exp['names'][0]}.pdf",format='pdf', bbox_inches='tight')
     plt.clf()
-
-                
-
-# plt_labels = ["reverse complement", "base comparison"]
-# for ind, exps in enumerate(experiments):
-#     file_names = [f"data/{exps}_{tsz}.json" for tsz in train_sizes]
-#     results = []
-#     for fn in file_names:
-#         data = []
-#         with open(fn, 'r') as file:
-#             for line in file:
-#                 json_obj = json.loads(line)
-#                 data.append(json_obj)
-#         if ind == 0: 
-#             match_count = sum(1 for entry in data if entry["model"]== entry["rev-comp"])
-#         else:
-#             match_count = sum(1 for entry in data if entry["model"]== entry["matching"])
-
-#         total_count = len(data)
-#         accuracy = (match_count/total_count) * 100
-#         results.append(accuracy)
-#     plt.scatter(train_sizes,results,color=color_list[ind],label=plt_labels[ind],marker=marker_list[ind],s=300,edgecolor='black', linewidths=1)
-    
-
-
-
-
-# ax = plt.gca()
-# ax.spines['top'].set_visible(False)
-# ax.spines['right'].set_visible(False)
-
-
-# plt.xlabel("training size", fontsize=18)
-# plt.ylabel("accuracy %", fontsize=18)
-# plt.ylim(0,105)
-# plt.xlim(0,10500)
-# ax.tick_params(axis='both', which='major', labelsize=18)
-# handles, labels = plt.gca().get_legend_handles_labels()
-# order = [1,0]  # Desired order (indices of datasets)
-# plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order],loc='upper left', bbox_to_anchor=(1, 1), fontsize=18)
-# plt.subplots_adjust(right=0.7)
-# # plt.margins(x=0.1, y=0.1)
-# plt.savefig('rev_matching_accuracy_vs_train_size.pdf',format='pdf', bbox_inches='tight')
