@@ -1,6 +1,6 @@
 # Chaining thoughts and LLMs to learn DNA structural biophysics
 
-This repo contains all the code/data used for Chaining thoughts and LLMs to learn DNA structural biophysics by Tyler Ross and Ashwin Gopinath
+This repo contains all the code/data used for [Chaining thoughts and LLMs to learn DNA structural biophysics](http://arxiv.org/abs/2403.01332) by Tyler Ross and Ashwin Gopinath
 
 #### Setup
 
@@ -73,7 +73,14 @@ Performance of the models are evaluated by running `analyze_results.py`, where t
 
 #### Cite
 
-
-
+```bibtex
+@misc{shinn2023reflexion,
+      title={Chaining thoughts and LLMs to learn DNA structural biophysics}, 
+      author={Tyler D. Ross and Ashwin Gopinath},
+      year={2024},
+      eprint={2403.01332},
+      archivePrefix={arXiv},
+}
+```
 
 
